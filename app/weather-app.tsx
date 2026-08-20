@@ -39,7 +39,7 @@ export default function WeatherApp({ initial }: { initial: CityWeather }) {
   });
 
   return (
-    <main className="flex w-full max-w-sm flex-col items-center gap-6 rounded-3xl bg-white px-10 py-12 text-center shadow-sm dark:bg-zinc-900">
+    <main className="flex w-full max-w-xl flex-col items-center gap-6 rounded-3xl bg-white px-14 py-12 text-center shadow-sm dark:bg-zinc-900">
       <form onSubmit={handleSubmit} className="flex w-full gap-2">
         <input
           type="text"
@@ -76,7 +76,7 @@ export default function WeatherApp({ initial }: { initial: CityWeather }) {
       </div>
       <p className="text-zinc-600 dark:text-zinc-400">{weather.current.label}</p>
 
-      <div className="grid w-full grid-cols-2 gap-4 rounded-2xl bg-zinc-50 p-4 text-sm dark:bg-black">
+      <div className="grid w-full grid-cols-2 gap-4 rounded-2xl bg-sky-200 p-4 text-sm dark:bg-sky-900">
         <div>
           <p className="text-zinc-500 dark:text-zinc-400">Gefühlt</p>
           <p className="font-medium text-black dark:text-zinc-50">
@@ -105,7 +105,7 @@ export default function WeatherApp({ initial }: { initial: CityWeather }) {
         {weather.daily.map((day) => (
           <div
             key={day.date}
-            className="flex flex-col items-center gap-1 rounded-2xl bg-zinc-50 p-3 dark:bg-black"
+            className="flex flex-col items-center gap-1 rounded-2xl bg-sky-100 p-3 dark:bg-sky-950"
           >
             <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
               {day.weekday}
