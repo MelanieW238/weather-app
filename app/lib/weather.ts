@@ -1,31 +1,73 @@
-// WMO weather codes -> human-readable label + emoji
-// https://open-meteo.com/en/docs#weathervariables
-const WEATHER_CODES: Record<number, { label: string; icon: string }> = {
-  0: { label: "Klarer Himmel", icon: "☀️" },
-  1: { label: "Überwiegend klar", icon: "🌤️" },
-  2: { label: "Teilweise bewölkt", icon: "⛅" },
-  3: { label: "Bewölkt", icon: "☁️" },
-  45: { label: "Nebel", icon: "🌫️" },
-  48: { label: "Reifnebel", icon: "🌫️" },
-  51: { label: "Leichter Nieselregen", icon: "🌦️" },
-  53: { label: "Nieselregen", icon: "🌦️" },
-  55: { label: "Starker Nieselregen", icon: "🌧️" },
-  61: { label: "Leichter Regen", icon: "🌦️" },
-  63: { label: "Regen", icon: "🌧️" },
-  65: { label: "Starker Regen", icon: "🌧️" },
-  71: { label: "Leichter Schneefall", icon: "🌨️" },
-  73: { label: "Schneefall", icon: "🌨️" },
-  75: { label: "Starker Schneefall", icon: "❄️" },
-  80: { label: "Regenschauer", icon: "🌦️" },
-  81: { label: "Regenschauer", icon: "🌧️" },
-  82: { label: "Heftige Regenschauer", icon: "⛈️" },
-  95: { label: "Gewitter", icon: "⛈️" },
-  96: { label: "Gewitter mit Hagel", icon: "⛈️" },
-  99: { label: "Gewitter mit starkem Hagel", icon: "⛈️" },
+// OpenWeatherMap icon codes -> emoji
+// https://openweathermap.org/weather-conditions
+const ICON_CODES: Record<string, string> = {
+  "01": "☀️",
+  "02": "🌤️",
+  "03": "⛅",
+  "04": "☁️",
+  "09": "🌧️",
+  "10": "🌦️",
+  "11": "⛈️",
+  "13": "❄️",
+  "50": "🌫️",
 };
 
-function describe(code: number) {
-  return WEATHER_CODES[code] ?? { label: "Unbekannt", icon: "❓" };
+function iconToEmoji(icon: string) {
+  return ICON_CODES[icon.slice(0, 2)] ?? "❓";
+}
+
+function capitalize(text: string) {
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
+function pad(n: number) {
+  return String(n).padStart(2, "0");
+}
+
+// Formats a UTC timestamp + a city's UTC offset into a naive local
+// datetime string (no zone suffix), so the client can display it as-is
+// regardless of the viewer's own timezone.
+function toLocalNaiveIso(unixSeconds: number, tzOffsetSeconds: number) {
+  const d = new Date((unixSeconds + tzOffsetSeconds) * 1000);
+  return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}T${pad(
+    d.getUTCHours()
+  )}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())}`;
+}
+
+function localDateKey(unixSeconds: number, tzOffsetSeconds: number) {
+  const d = new Date((unixSeconds + tzOffsetSeconds) * 1000);
+  return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
+}
+
+function weekdayLabel(dateStr: string, index: number) {
+  if (index === 0) return "Heute";
+  if (index === 1) return "Morgen";
+  const date = new Date(`${dateStr}T00:00:00`);
+  return new Intl.DateTimeFormat("de-DE", { weekday: "short" }).format(date);
+}
+
+async function owmFetch(
+  path: string,
+  params: Record<string, string | number>,
+  revalidate: number
+) {
+  const apiKey = process.env.OPENWEATHER_API_KEY;
+  if (!apiKey) {
+    throw new Error("OPENWEATHER_API_KEY ist nicht gesetzt.");
+  }
+
+  const url = new URL(`https://api.openweathermap.org${path}`);
+  for (const [key, value] of Object.entries(params)) {
+    url.searchParams.set(key, String(value));
+  }
+  url.searchParams.set("appid", apiKey);
+
+  const res = await fetch(url, { next: { revalidate } });
+  if (!res.ok) {
+    throw new Error(`OpenWeatherMap request failed: ${res.status}`);
+  }
+
+  return res.json();
 }
 
 export type CurrentWeather = {
@@ -59,94 +101,87 @@ export type GeocodeResult = {
   country: string;
   latitude: number;
   longitude: number;
-  timezone: string;
 };
 
+const countryNames = new Intl.DisplayNames("de", { type: "region" });
+
 export async function geocodeCity(query: string): Promise<GeocodeResult | null> {
-  const params = new URLSearchParams({
-    name: query,
-    count: "1",
-    language: "de",
-    format: "json",
-  });
-
-  const res = await fetch(`https://geocoding-api.open-meteo.com/v1/search?${params}`, {
-    next: { revalidate: 3600 },
-  });
-
-  if (!res.ok) {
-    throw new Error(`Geocoding request failed: ${res.status}`);
-  }
-
-  const data = await res.json();
-  const result = data.results?.[0];
+  const results = await owmFetch("/geo/1.0/direct", { q: query, limit: 1 }, 3600);
+  const result = results[0];
   if (!result) return null;
 
   return {
-    name: result.name,
-    country: result.country ?? "",
-    latitude: result.latitude,
-    longitude: result.longitude,
-    timezone: result.timezone,
+    name: result.local_names?.de ?? result.name,
+    country: result.country ? countryNames.of(result.country) ?? result.country : "",
+    latitude: result.lat,
+    longitude: result.lon,
   };
 }
 
-function weekdayLabel(dateStr: string, index: number) {
-  if (index === 0) return "Heute";
-  if (index === 1) return "Morgen";
-  const date = new Date(`${dateStr}T00:00:00`);
-  return new Intl.DateTimeFormat("de-DE", { weekday: "short" }).format(date);
+type ForecastEntry = {
+  dt: number;
+  main: { temp_max: number; temp_min: number };
+  weather: { description: string; icon: string }[];
+};
+
+function aggregateDaily(list: ForecastEntry[], tzOffsetSeconds: number): DayForecast[] {
+  const groups = new Map<string, ForecastEntry[]>();
+  for (const entry of list) {
+    const key = localDateKey(entry.dt, tzOffsetSeconds);
+    const group = groups.get(key);
+    if (group) {
+      group.push(entry);
+    } else {
+      groups.set(key, [entry]);
+    }
+  }
+
+  return [...groups.entries()].slice(0, 3).map(([date, entries], i) => {
+    const tempMax = Math.max(...entries.map((e) => e.main.temp_max));
+    const tempMin = Math.min(...entries.map((e) => e.main.temp_min));
+
+    // Use the entry closest to local noon as representative for icon/label.
+    const noonEntry = entries.reduce((best, entry) => {
+      const hour = (entry.dt + tzOffsetSeconds) / 3600 % 24;
+      const bestHour = (best.dt + tzOffsetSeconds) / 3600 % 24;
+      return Math.abs(hour - 12) < Math.abs(bestHour - 12) ? entry : best;
+    });
+
+    return {
+      date,
+      weekday: weekdayLabel(date, i),
+      tempMax,
+      tempMin,
+      label: capitalize(noonEntry.weather[0].description),
+      icon: iconToEmoji(noonEntry.weather[0].icon),
+    };
+  });
 }
 
 export async function getWeather(
   latitude: number,
-  longitude: number,
-  timezone: string
+  longitude: number
 ): Promise<{ current: CurrentWeather; daily: DayForecast[] }> {
-  const params = new URLSearchParams({
-    latitude: String(latitude),
-    longitude: String(longitude),
-    current: "temperature_2m,apparent_temperature,relative_humidity_2m,wind_speed_10m,weather_code",
-    daily: "weather_code,temperature_2m_max,temperature_2m_min",
-    forecast_days: "3",
-    timezone,
-  });
+  const params = { lat: latitude, lon: longitude, units: "metric", lang: "de" };
 
-  const res = await fetch(`https://api.open-meteo.com/v1/forecast?${params}`, {
-    next: { revalidate: 300 },
-  });
+  const [current, forecast] = await Promise.all([
+    owmFetch("/data/2.5/weather", params, 300),
+    owmFetch("/data/2.5/forecast", params, 1800),
+  ]);
 
-  if (!res.ok) {
-    throw new Error(`Open-Meteo request failed: ${res.status}`);
-  }
-
-  const data = await res.json();
-  const current = data.current;
-  const weather = describe(current.weather_code);
-
-  const daily: DayForecast[] = data.daily.time.map((date: string, i: number) => {
-    const dayWeather = describe(data.daily.weather_code[i]);
-    return {
-      date,
-      weekday: weekdayLabel(date, i),
-      tempMax: data.daily.temperature_2m_max[i],
-      tempMin: data.daily.temperature_2m_min[i],
-      label: dayWeather.label,
-      icon: dayWeather.icon,
-    };
-  });
+  const tzOffsetSeconds = current.timezone;
 
   return {
     current: {
-      temperature: current.temperature_2m,
-      feelsLike: current.apparent_temperature,
-      humidity: current.relative_humidity_2m,
-      windSpeed: current.wind_speed_10m,
-      label: weather.label,
-      icon: weather.icon,
-      updatedAt: current.time,
+      temperature: current.main.temp,
+      feelsLike: current.main.feels_like,
+      humidity: current.main.humidity,
+      windSpeed: Math.round(current.wind.speed * 3.6 * 10) / 10,
+      label: capitalize(current.weather[0].description),
+      icon: iconToEmoji(current.weather[0].icon),
+      updatedAt: toLocalNaiveIso(current.dt, tzOffsetSeconds),
     },
-    daily,
+    daily: aggregateDaily(forecast.list, tzOffsetSeconds),
   };
 }
 
@@ -156,11 +191,7 @@ export async function getCityWeather(query: string): Promise<CityWeather> {
     throw new Error(`Stadt "${query}" wurde nicht gefunden.`);
   }
 
-  const { current, daily } = await getWeather(
-    location.latitude,
-    location.longitude,
-    location.timezone
-  );
+  const { current, daily } = await getWeather(location.latitude, location.longitude);
 
   return {
     city: location.name,

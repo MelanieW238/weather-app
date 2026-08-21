@@ -76,7 +76,7 @@ export default function WeatherApp({ initial }: { initial: CityWeather }) {
       </div>
       <p className="text-zinc-600 dark:text-zinc-400">{weather.current.label}</p>
 
-      <div className="grid w-full grid-cols-2 gap-4 rounded-2xl bg-sky-200 p-4 text-sm dark:bg-sky-900">
+      <div className="grid w-full grid-cols-3 gap-4 rounded-2xl bg-sky-200 p-4 text-sm dark:bg-sky-900">
         <div>
           <p className="text-zinc-500 dark:text-zinc-400">Gefühlt</p>
           <p className="font-medium text-black dark:text-zinc-50">
@@ -94,10 +94,6 @@ export default function WeatherApp({ initial }: { initial: CityWeather }) {
           <p className="font-medium text-black dark:text-zinc-50">
             {weather.current.windSpeed} km/h
           </p>
-        </div>
-        <div>
-          <p className="text-zinc-500 dark:text-zinc-400">Quelle</p>
-          <p className="font-medium text-black dark:text-zinc-50">Open-Meteo</p>
         </div>
       </div>
 
@@ -120,6 +116,8 @@ export default function WeatherApp({ initial }: { initial: CityWeather }) {
           </div>
         ))}
       </div>
+
+      <p className="text-xs text-zinc-400 dark:text-zinc-600">Quelle: OpenWeatherMap</p>
     </main>
   );
 }
