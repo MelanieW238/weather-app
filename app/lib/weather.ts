@@ -92,6 +92,8 @@ export type DayForecast = {
 export type CityWeather = {
   city: string;
   country: string;
+  latitude: number;
+  longitude: number;
   current: CurrentWeather;
   daily: DayForecast[];
 };
@@ -196,6 +198,8 @@ export async function getCityWeather(query: string): Promise<CityWeather> {
   return {
     city: location.name,
     country: location.country,
+    latitude: location.latitude,
+    longitude: location.longitude,
     current,
     daily,
   };

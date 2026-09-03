@@ -3,6 +3,12 @@
 import { useState } from "react";
 import type { CityWeather } from "./lib/weather";
 
+function coordLabel(latitude: number, longitude: number) {
+  const lat = `${Math.abs(latitude).toFixed(2)}° ${latitude >= 0 ? "N" : "S"}`;
+  const lon = `${Math.abs(longitude).toFixed(2)}° ${longitude >= 0 ? "E" : "W"}`;
+  return `${lat}, ${lon}`;
+}
+
 export default function WeatherApp({ initial }: { initial: CityWeather }) {
   const [weather, setWeather] = useState(initial);
   const [query, setQuery] = useState("");
@@ -38,86 +44,157 @@ export default function WeatherApp({ initial }: { initial: CityWeather }) {
     minute: "2-digit",
   });
 
+  const metrics = [
+    { label: "Gefühlt", value: `${Math.round(weather.current.feelsLike)}°`, unit: "Celsius" },
+    { label: "Luftfeuchte", value: String(weather.current.humidity), unit: "% relativ" },
+    { label: "Wind", value: String(weather.current.windSpeed), unit: "km/h" },
+  ];
+
+  const lo = Math.min(...weather.daily.map((d) => d.tempMin));
+  const hi = Math.max(...weather.daily.map((d) => d.tempMax));
+  const range = hi - lo || 1;
+
   return (
-    <main className="flex w-full max-w-xl flex-col items-center gap-6 rounded-3xl bg-white px-14 py-12 text-center shadow-sm dark:bg-zinc-900">
-      <form onSubmit={handleSubmit} className="flex w-full gap-2">
-        <input
-          type="text"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Stadt suchen…"
-          className="flex-1 rounded-full border border-zinc-200 bg-zinc-50 px-4 py-2 text-sm text-black outline-none focus:border-zinc-400 dark:border-zinc-700 dark:bg-black dark:text-zinc-50"
-        />
-        <button
-          type="submit"
-          disabled={loading}
-          className="rounded-full bg-black px-4 py-2 text-sm font-medium text-white disabled:opacity-50 dark:bg-white dark:text-black"
-        >
-          {loading ? "…" : "Suchen"}
-        </button>
-      </form>
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#050505] px-5 py-12">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -top-[220px] -left-[180px] h-[640px] w-[640px] rounded-full bg-[#7C6CF0] opacity-[.13] blur-[140px]"
+      />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -right-[200px] -bottom-[260px] h-[680px] w-[680px] rounded-full bg-[#2DD4BF] opacity-[.08] blur-[150px]"
+      />
 
-      {error && <p className="text-sm text-red-500">{error}</p>}
+      <div className="relative w-full max-w-[412px] rounded-[2.25rem] border border-white/10 bg-white/[.04] p-1.5">
+        <div className="flex flex-col gap-6 overflow-hidden rounded-[1.9rem] bg-[#0C0C0E] px-5 py-6 shadow-[inset_0_1px_1px_rgba(255,255,255,.06)]">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-2">
+              <span className="h-[7px] w-[7px] animate-[noir-pulse_2.4s_ease-in-out_infinite] rounded-full bg-[#5EEAD4]" />
+              <span className="font-mono text-[.62rem] font-medium tracking-[.22em] text-[#9C9CA6] uppercase">
+                Live · Stand {updated} Uhr
+              </span>
+            </div>
+            <span className="font-display text-[.95rem] font-semibold tracking-[-.02em] text-[#62626E]">
+              wttr
+            </span>
+          </div>
 
-      <div>
-        <h1 className="text-xl font-semibold text-black dark:text-zinc-50">
-          {weather.city}
-          {weather.country && (
-            <span className="text-zinc-400 dark:text-zinc-500">, {weather.country}</span>
-          )}
-        </h1>
-        <p className="text-sm text-zinc-500 dark:text-zinc-400">Stand: {updated} Uhr</p>
-      </div>
+          <form onSubmit={handleSubmit} className="flex items-center gap-2">
+            <div className="flex flex-1 items-center gap-2.5 rounded-full border border-white/10 bg-white/[.03] px-4 py-2.5 focus-within:border-white/20">
+              <span className="text-[.9rem] text-[#62626E]">⌕</span>
+              <input
+                type="text"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Stadt suchen…"
+                className="min-w-0 flex-1 bg-transparent text-[.95rem] text-[#F2F2F0] outline-none placeholder:text-[#62626E]"
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={loading}
+              aria-label="Suchen"
+              className="flex h-11 w-11 flex-none items-center justify-center rounded-full border border-white/[.16] bg-white/5 text-[1rem] text-[#F2F2F0] transition-[transform,border-color] duration-300 hover:-translate-y-0.5 hover:border-white/[.34] active:scale-95 disabled:opacity-50"
+            >
+              {loading ? "…" : "→"}
+            </button>
+          </form>
 
-      <div className="text-6xl">{weather.current.icon}</div>
+          {error && <p className="text-sm text-red-400">{error}</p>}
 
-      <div className="text-5xl font-semibold tabular-nums text-black dark:text-zinc-50">
-        {Math.round(weather.current.temperature)}°C
-      </div>
-      <p className="text-zinc-600 dark:text-zinc-400">{weather.current.label}</p>
-
-      <div className="grid w-full grid-cols-3 gap-4 rounded-2xl bg-sky-200 p-4 text-sm dark:bg-sky-900">
-        <div>
-          <p className="text-zinc-500 dark:text-zinc-400">Gefühlt</p>
-          <p className="font-medium text-black dark:text-zinc-50">
-            {Math.round(weather.current.feelsLike)}°C
-          </p>
-        </div>
-        <div>
-          <p className="text-zinc-500 dark:text-zinc-400">Luftfeuchtigkeit</p>
-          <p className="font-medium text-black dark:text-zinc-50">
-            {weather.current.humidity}%
-          </p>
-        </div>
-        <div>
-          <p className="text-zinc-500 dark:text-zinc-400">Wind</p>
-          <p className="font-medium text-black dark:text-zinc-50">
-            {weather.current.windSpeed} km/h
-          </p>
-        </div>
-      </div>
-
-      <div className="grid w-full grid-cols-3 gap-2">
-        {weather.daily.map((day) => (
-          <div
-            key={day.date}
-            className="flex flex-col items-center gap-1 rounded-2xl bg-sky-100 p-3 dark:bg-sky-950"
-          >
-            <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
-              {day.weekday}
-            </p>
-            <p className="text-2xl">{day.icon}</p>
-            <p className="text-sm font-medium text-black dark:text-zinc-50">
-              {Math.round(day.tempMax)}°
-            </p>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400">
-              {Math.round(day.tempMin)}°
+          <div className="flex flex-col gap-[.15rem]">
+            <h1 className="font-display text-[2.35rem] leading-[1.02] font-semibold tracking-[-.025em] text-[#F2F2F0]">
+              {weather.city}
+            </h1>
+            <p className="font-mono text-[.62rem] font-medium tracking-[.22em] text-[#62626E] uppercase">
+              {weather.country ? `${weather.country} · ` : ""}
+              {coordLabel(weather.latitude, weather.longitude)}
             </p>
           </div>
-        ))}
-      </div>
 
-      <p className="text-xs text-zinc-400 dark:text-zinc-600">Quelle: OpenWeatherMap</p>
-    </main>
+          <div className="flex items-start justify-between gap-4 py-1">
+            <div className="flex items-start">
+              <span className="bg-gradient-to-r from-[#8B7CF6] to-[#5EEAD4] bg-clip-text font-display text-[6.6rem] leading-[.86] font-medium tracking-[-.045em] text-transparent">
+                {Math.round(weather.current.temperature)}
+              </span>
+              <span className="mt-2 font-display text-[1.6rem] leading-none font-medium tracking-[-.02em] text-[#62626E]">
+                °C
+              </span>
+            </div>
+            <div
+              aria-hidden
+              className="mt-4 animate-[noir-drift_7s_ease-in-out_infinite] text-6xl"
+            >
+              {weather.current.icon}
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-baseline gap-[.7rem]">
+            <p className="font-display text-[1.35rem] font-medium tracking-[-.02em] text-[#F2F2F0]">
+              {weather.current.label}
+            </p>
+            <p className="text-[.95rem] text-[#9C9CA6]">
+              Gefühlt wie {Math.round(weather.current.feelsLike)}°C
+            </p>
+          </div>
+
+          <div className="grid grid-cols-3 gap-2">
+            {metrics.map((m) => (
+              <div
+                key={m.label}
+                className="flex flex-col gap-[.55rem] rounded-[1.25rem] border border-white/10 bg-white/[.035] px-[.8rem] py-[.9rem] shadow-[inset_0_1px_1px_rgba(255,255,255,.06)]"
+              >
+                <span className="font-mono text-[.57rem] font-medium tracking-[.2em] text-[#62626E] uppercase">
+                  {m.label}
+                </span>
+                <span className="font-display text-[1.25rem] font-medium tracking-[-.025em] text-[#F2F2F0]">
+                  {m.value}
+                </span>
+                <span className="font-mono text-[.57rem] tracking-[.12em] text-[#8B7CF6]">
+                  {m.unit}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          <div className="flex flex-col gap-[.4rem]">
+            <span className="font-mono text-[.62rem] font-medium tracking-[.22em] text-[#62626E] uppercase">
+              Drei Tage
+            </span>
+            {weather.daily.map((day) => {
+              const from = ((day.tempMin - lo) / range) * 100;
+              const span = ((day.tempMax - day.tempMin) / range) * 100;
+              return (
+                <div
+                  key={day.date}
+                  className="grid grid-cols-[4.2rem_1fr_auto] items-center gap-[.9rem] border-b border-white/10 py-[.85rem]"
+                >
+                  <span className="font-display text-base font-medium tracking-[-.02em] text-[#F2F2F0]">
+                    {day.weekday}
+                  </span>
+                  <div className="flex items-center gap-[.6rem]">
+                    <span className="text-[1.15rem] leading-none">{day.icon}</span>
+                    <span className="relative h-[3px] flex-1 overflow-hidden rounded-full bg-white/10">
+                      <span
+                        className="absolute inset-y-0 rounded-full bg-gradient-to-r from-[#8B7CF6] to-[#5EEAD4]"
+                        style={{ left: `${from}%`, width: `${span}%` }}
+                      />
+                    </span>
+                  </div>
+                  <span className="font-mono text-[.78rem] tracking-[.08em] whitespace-nowrap">
+                    <span className="text-[#F2F2F0]">{Math.round(day.tempMax)}°</span>
+                    <span className="text-[#62626E]"> / {Math.round(day.tempMin)}°</span>
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+
+          <p className="pt-[.2rem] text-center font-mono text-[.57rem] tracking-[.2em] text-[#62626E] uppercase">
+            Quelle: OpenWeatherMap
+          </p>
+        </div>
+      </div>
+    </div>
   );
 }
