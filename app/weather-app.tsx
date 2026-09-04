@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import type { CityWeather } from "./lib/weather";
 
@@ -55,7 +56,7 @@ export default function WeatherApp({ initial }: { initial: CityWeather }) {
   const range = hi - lo || 1;
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#050505] px-5 py-12">
+    <div className="relative flex min-h-screen flex-col items-center justify-center gap-5 overflow-hidden bg-[#050505] px-5 py-12">
       <div
         aria-hidden
         className="pointer-events-none absolute -top-[220px] -left-[180px] h-[640px] w-[640px] rounded-full bg-[#7C6CF0] opacity-[.13] blur-[140px]"
@@ -195,6 +196,16 @@ export default function WeatherApp({ initial }: { initial: CityWeather }) {
           </p>
         </div>
       </div>
+
+      <nav className="relative flex items-center gap-4 font-mono text-[.57rem] tracking-[.2em] text-[#62626E] uppercase">
+        <Link href="/impressum" className="transition-colors hover:text-[#9C9CA6]">
+          Impressum
+        </Link>
+        <span aria-hidden>·</span>
+        <Link href="/datenschutz" className="transition-colors hover:text-[#9C9CA6]">
+          Datenschutz
+        </Link>
+      </nav>
     </div>
   );
 }
