@@ -62,7 +62,7 @@ async function owmFetch(
   }
   url.searchParams.set("appid", apiKey);
 
-  const res = await fetch(url, { next: { revalidate } });
+  const res = await fetch(url, { next: { revalidate }, signal: AbortSignal.timeout(10_000) });
   if (!res.ok) {
     throw new Error(`OpenWeatherMap request failed: ${res.status}`);
   }
